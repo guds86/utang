@@ -9,7 +9,14 @@ import {
   setDoc
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-// 🔐 GANTI INI dengan config dari Firebase milikmu
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDZoLi6QymN9DHKQHU9xc0atJEJw7OY4Xg",
   authDomain: "utang-1d2b4.firebaseapp.com",
