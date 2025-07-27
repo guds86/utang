@@ -37,17 +37,15 @@ let historiBarang = {};
 let currentPage = 1;
 let perPage = 10;
 
-async function loadData() {
-  dataUtang = [];
-  historiNama.clear();
-  historiBarang = {};
+async function loadDataDariFirebase() {
+  const db = window.firebaseDB;
+  const { collection, getDocs } = window.firestore;
 
-  const utangSnap = await getDocs(collection(db, "utangs"));
-  utangSnap.forEach(doc => {
-    const d = doc.data();
-    dataUtang.push({ id: doc.id, ...d });
-    historiNama.add(d.nama);
-    historiBarang[d.barang] = d.jumlah;
+  const snapshot = await getDocs(collection(db, "dataUtang"));
+  dataUtang = [];
+
+  snapshot.forEach(doc => {
+    dataUtang.push({ id: doc.id, ...doc.data() });
   });
 
   renderTabel();
@@ -55,7 +53,8 @@ async function loadData() {
 }
 
 window.onload = async function () {
-  await loadData();
+  await loadDataDariFirebase();
+  renderDatalist();
 };
 
 async function tambahUtang() {
