@@ -3,78 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <title>Pencatatan Utang</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-
-  <!-- SheetJS untuk Ekspor Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+  <!-- CSS Langsung -->
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    input, select, button { margin: 5px 0; padding: 8px; }
-    .pagination { margin-top: 10px; }
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      max-width: 900px;
+      margin: auto;
+      background: #fafafa;
+    }
+    input, button, select {
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    .form-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      flex: 1;
+      min-width: 150px;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    table {
+      width: 100%;
+      margin-top: 1rem;
+      border-collapse: collapse;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .pagination {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pagination button {
+      margin: 0 0.25rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    hr {
+      margin: 2rem 0 1rem;
+    }
+    .btn {
+      cursor: pointer;
+    }
   </style>
-</head>
-<body>
 
-  <h1>Pencatatan Utang</h1>
+  <!-- Firebase dan SheetJS -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      deleteDoc,
+      doc,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-  <label>Nama: <input list="daftarNama" id="nama" /></label>
-  <datalist id="daftarNama"></datalist>
-  <label>Barang: <input list="daftarBarang" id="barang" oninput="isiHargaBarang()" /></label>
-  <datalist id="daftarBarang"></datalist>
-  <label>Jumlah (Rp): <input type="number" id="jumlah" /></label>
-  <button onclick="tambahUtang()">Tambahkan Utang</button>
+    import { writeFile, utils as XLSXUtils, book_new, book_append_sheet } from "https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs";
 
-  <div class="pagination">
-    <label>Data per halaman:
-      <select id="perPage" onchange="changePerPage()">
-        <option>5</option>
-        <option selected>10</option>
-        <option>25</option>
-      </select>
-    </label>
-    <button onclick="prevPage()">Sebelumnya</button>
-    <span id="pageInfo"></span>
-    <button onclick="nextPage()">Berikutnya</button>
-  </div>
-
-  <table id="tabelUtang">
-    <thead>
-      <tr>
-        <th>No</th><th>Nama</th><th>Barang</th><th>Jumlah</th><th>Aksi</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <h3>Hapus Riwayat Nama</h3>
-  <select id="hapusNamaSelect"></select>
-  <button onclick="hapusNamaLog()">Hapus Nama</button>
-
-  <br><br>
-  <button onclick="eksporExcel()">Ekspor ke Excel</button>
-
-  <script>
-    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDZoLi6QymN9DHKQHU9xc0atJEJw7OY4Xg",
       authDomain: "utang-1d2b4.firebaseapp.com",
       projectId: "utang-1d2b4",
       storageBucket: "utang-1d2b4.appspot.com",
       messagingSenderId: "281865452329",
-      appId: "1:281865452329:web:fe3a5e6ba6f59d70f31538",
-      measurementId: "G-0ZJX42474G"
+      appId: "1:281865452329:web:fe3a5e6ba6f59d70f31538"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     let dataUtang = [];
     let historiNama = new Set();
@@ -83,18 +101,23 @@
     let perPage = 10;
 
     async function loadDataDariFirebase() {
-      const snapshot = await db.collection("dataUtang").get();
+      const snapshot = await getDocs(collection(db, "dataUtang"));
       dataUtang = [];
+
       snapshot.forEach(doc => {
-        dataUtang.push({ id: doc.id, ...doc.data() });
-        historiNama.add(doc.data().nama);
-        historiBarang[doc.data().barang] = doc.data().jumlah;
+        const item = { id: doc.id, ...doc.data() };
+        dataUtang.push(item);
+        historiNama.add(item.nama);
+        historiBarang[item.barang] = item.jumlah;
       });
+
       renderTabel();
       renderDatalist();
     }
 
-    async function tambahUtang() {
+    window.onload = loadDataDariFirebase;
+
+    window.tambahUtang = async function () {
       const nama = document.getElementById('nama').value.trim();
       const barang = document.getElementById('barang').value.trim();
       const jumlah = parseInt(document.getElementById('jumlah').value);
@@ -104,18 +127,17 @@
         return;
       }
 
-      const utangBaru = { nama, barang, jumlah };
       try {
-        await db.collection("dataUtang").add(utangBaru);
+        await addDoc(collection(db, "dataUtang"), { nama, barang, jumlah });
         await loadDataDariFirebase();
         document.getElementById('nama').value = '';
         document.getElementById('barang').value = '';
         document.getElementById('jumlah').value = '';
       } catch (e) {
-        console.error("Gagal menyimpan:", e);
+        console.error("Gagal menambah utang: ", e);
         alert("Gagal menyimpan ke database.");
       }
-    }
+    };
 
     function renderTabel() {
       const tbody = document.querySelector("#tabelUtang tbody");
@@ -167,60 +189,21 @@
       });
     }
 
-    function isiHargaBarang() {
+    window.isiHargaBarang = function () {
       const barang = document.getElementById('barang').value.trim();
       if (barang in historiBarang) {
         document.getElementById('jumlah').value = historiBarang[barang];
       }
-    }
+    };
 
-    async function hapusUtang(id) {
+    window.hapusUtang = async function (id) {
       if (confirm("Apakah utang ini sudah lunas?")) {
-        await db.collection("dataUtang").doc(id).delete();
+        await deleteDoc(doc(db, "dataUtang", id));
         await loadDataDariFirebase();
       }
-    }
+    };
 
-    async function hapusNamaLog() {
-      const namaDipilih = document.getElementById('hapusNamaSelect').value;
-      if (!namaDipilih || !historiNama.has(namaDipilih)) {
-        alert("Pilih nama yang valid.");
-        return;
-      }
-
-      if (confirm(`Yakin ingin menghapus semua utang atas nama "${namaDipilih}"?`)) {
-        const snapshot = await db.collection("dataUtang").get();
-        for (const doc of snapshot.docs) {
-          if (doc.data().nama === namaDipilih) {
-            await db.collection("dataUtang").doc(doc.id).delete();
-          }
-        }
-        await loadDataDariFirebase();
-      }
-    }
-
-    function changePerPage() {
-      perPage = parseInt(document.getElementById('perPage').value);
-      currentPage = 1;
-      renderTabel();
-    }
-
-    function prevPage() {
-      if (currentPage > 1) {
-        currentPage--;
-        renderTabel();
-      }
-    }
-
-    function nextPage() {
-      const totalPages = Math.ceil(dataUtang.length / perPage);
-      if (currentPage < totalPages) {
-        currentPage++;
-        renderTabel();
-      }
-    }
-
-    function eksporExcel() {
+    window.eksporExcel = function () {
       if (dataUtang.length === 0) {
         alert("Tidak ada data untuk diekspor.");
         return;
@@ -238,13 +221,114 @@
         ]);
       });
 
-      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Utang");
-      XLSX.writeFile(workbook, "data_utang.xlsx");
-    }
+      const worksheet = XLSXUtils.aoa_to_sheet(worksheetData);
+      const workbook = book_new();
+      book_append_sheet(workbook, worksheet, "Data Utang");
+      writeFile(workbook, "data_utang.xlsx");
+    };
 
-    window.onload = loadDataDariFirebase;
+    window.hapusNamaLog = async function () {
+      const select = document.getElementById('hapusNamaSelect');
+      const namaDipilih = select.value;
+
+      if (!namaDipilih || !historiNama.has(namaDipilih)) {
+        alert("Pilih nama yang valid.");
+        return;
+      }
+
+      if (confirm(`Yakin ingin menghapus semua data atas nama "${namaDipilih}"?`)) {
+        const snapshot = await getDocs(collection(db, "dataUtang"));
+        for (const d of snapshot.docs) {
+          if (d.data().nama === namaDipilih) {
+            await deleteDoc(doc(db, "dataUtang", d.id));
+          }
+        }
+        await loadDataDariFirebase();
+      }
+    };
+
+    window.changePerPage = function () {
+      perPage = parseInt(document.getElementById('perPage').value);
+      currentPage = 1;
+      renderTabel();
+    };
+
+    window.prevPage = function () {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTabel();
+      }
+    };
+
+    window.nextPage = function () {
+      const totalPages = Math.ceil(dataUtang.length / perPage);
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTabel();
+      }
+    };
   </script>
+</head>
+
+<body>
+  <h1>Pencatatan Utang</h1>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="nama">Nama:</label>
+      <input list="daftarNama" id="nama" placeholder="Masukkan nama" />
+      <datalist id="daftarNama"></datalist>
+    </div>
+
+    <div class="form-group">
+      <label for="barang">Barang:</label>
+      <input list="daftarBarang" id="barang" placeholder="Masukkan barang" oninput="isiHargaBarang()" />
+      <datalist id="daftarBarang"></datalist>
+    </div>
+
+    <div class="form-group">
+      <label for="jumlah">Jumlah (Rp):</label>
+      <input type="number" id="jumlah" placeholder="Masukkan jumlah" />
+    </div>
+
+    <button onclick="tambahUtang()" class="btn">Tambahkan</button>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="hapusNamaSelect">Hapus Data Nama:</label>
+      <select id="hapusNamaSelect"></select>
+    </div>
+    <button onclick="hapusNamaLog()" class="btn">Hapus Nama</button>
+  </div>
+
+  <hr />
+
+  <div class="pagination">
+    <button onclick="prevPage()">Sebelumnya</button>
+    <span id="pageInfo"></span>
+    <button onclick="nextPage()">Berikutnya</button>
+
+    <select id="perPage" onchange="changePerPage()">
+      <option value="5">5 / halaman</option>
+      <option value="10" selected>10 / halaman</option>
+      <option value="20">20 / halaman</option>
+    </select>
+
+    <button onclick="eksporExcel()">Ekspor Excel</button>
+  </div>
+
+  <table id="tabelUtang">
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>Nama</th>
+        <th>Barang</th>
+        <th>Jumlah</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </body>
 </html>
