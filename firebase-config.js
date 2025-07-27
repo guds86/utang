@@ -214,4 +214,6 @@ function nextPage() {
     currentPage++;
     renderTabel();
   }
+
+  console.log("Tambah Utang Dijalankan");
 }
