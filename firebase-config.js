@@ -68,13 +68,23 @@ async function tambahUtang() {
     return;
   }
 
-  await addDoc(collection(db, "utangs"), { nama, barang, jumlah });
+   const utangBaru = { nama, barang, jumlah };
 
-  await loadData();
+  // Simpan ke Firebase
+  try {
+    const db = window.firebaseDB;
+    const { collection, addDoc } = window.firestore;
+    await addDoc(collection(db, "dataUtang"), utangBaru);
 
-  document.getElementById('nama').value = '';
-  document.getElementById('barang').value = '';
-  document.getElementById('jumlah').value = '';
+    // Refresh tabel
+    await loadDataDariFirebase();
+    document.getElementById('nama').value = '';
+    document.getElementById('barang').value = '';
+    document.getElementById('jumlah').value = '';
+  } catch (e) {
+    console.error("Gagal menambah utang: ", e);
+    alert("Gagal menyimpan ke database.");
+  }
 }
 
 function renderTabel() {
