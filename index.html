@@ -3,77 +3,59 @@
 <head>
   <meta charset="UTF-8" />
   <title>Pencatatan Utang</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <!-- DataTables CSS & jQuery -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
 
-  <!-- SheetJS untuk Ekspor Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- SheetJS for Excel Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
   <style>
-body {
-  font-family: sans-serif;
-  padding: 2rem;
-  max-width: 900px;
-  margin: auto;
-  background: #fafafa;
-}
-input, button, select {
-  padding: 0.5rem;
-  font-size: 1rem;
-}
-.form-row {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-.form-group {
-  flex: 1;
-  min-width: 150px;
-}
-label {
-  font-weight: bold;
-  display: block;
-  margin-bottom: 0.25rem;
-}
-table {
-  width: 100%;
-  margin-top: 1rem;
-  border-collapse: collapse;
-  background: white;
-}
-th, td {
-  border: 1px solid #ccc;
-  padding: 0.5rem;
-  text-align: left;
-}
-th {
-  background-color: #f2f2f2;
-}
-.pagination {
-  margin-top: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.pagination button {
-  margin: 0 0.25rem;
-}
-h1 {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-hr {
-  margin: 2rem 0 1rem;
-}
-.btn {
-  cursor: pointer;
-}
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      max-width: 960px;
+      margin: auto;
+      background: #fafafa;
+    }
+    input, button, select {
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    .form-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      flex: 1;
+      min-width: 150px;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    hr {
+      margin: 2rem 0 1rem;
+    }
+    .btn {
+      cursor: pointer;
+    }
 
+    .table-wrapper {
+      overflow-x: auto;
+      max-width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -83,7 +65,7 @@ hr {
   <div class="form-row">
     <div class="form-group">
       <label for="nama">Nama:</label>
-      <input type="text" id="nama" list="daftarNama" placeholder="Contoh: Budi">
+      <input type="text" id="nama" list="daftarNama" placeholder="Contoh: Agus SP">
       <datalist id="daftarNama"></datalist>
     </div>
     <div class="form-group">
@@ -114,221 +96,182 @@ hr {
 
   <hr>
 
-  <div class="form-row">
-    <label for="perPage">Tampilkan per halaman:</label>
-    <select id="perPage" onchange="changePerPage()">
-      <option value="10">10</option>
-      <option value="50">50</option>
-      <option value="100">100</option>
-    </select>
+  <div class="table-wrapper">
+    <table id="tabelUtang" class="display">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Nama</th>
+          <th>Barang</th>
+          <th>Jumlah (Rp)</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
-  <table id="tabelUtang">
-    <thead>
-      <tr>
-        <th>No</th>
-        <th>Nama</th>
-        <th>Barang</th>
-        <th>Jumlah (Rp)</th>
-        <th>Aksi</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<script>
+  let dataUtang = [];
+  let historiNama = new Set();
+  let historiBarang = {};
+  let tableInstance;
 
-  <div class="pagination">
-    <div>
-      <button onclick="prevPage()">⬅️ Sebelumnya</button>
-      <span id="pageInfo">Halaman 1</span>
-      <button onclick="nextPage()">➡️ Selanjutnya</button>
-    </div>
-  </div>
+  window.onload = function () {
+    const saved = localStorage.getItem("dataUtang");
+    if (saved) dataUtang = JSON.parse(saved);
 
+    const namaLog = localStorage.getItem("historiNama");
+    if (namaLog) historiNama = new Set(JSON.parse(namaLog));
 
-  <script>
-    // Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyDZoLi6QymN9DHKQHU9xc0atJEJw7OY4Xg",
-      authDomain: "utang-1d2b4.firebaseapp.com",
-      projectId: "utang-1d2b4",
-      storageBucket: "utang-1d2b4.appspot.com",
-      messagingSenderId: "281865452329",
-      appId: "1:281865452329:web:fe3a5e6ba6f59d70f31538",
-      measurementId: "G-0ZJX42474G"
-    };
+    const barangLog = localStorage.getItem("historiBarang");
+    if (barangLog) historiBarang = JSON.parse(barangLog);
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    reloadDataTable();
+    renderDatalist();
+  };
 
-    let dataUtang = [];
-    let historiNama = new Set();
-    let historiBarang = {};
-    let currentPage = 1;
-    let perPage = 10;
+  function simpanLocal() {
+    localStorage.setItem("dataUtang", JSON.stringify(dataUtang));
+    localStorage.setItem("historiNama", JSON.stringify(Array.from(historiNama)));
+    localStorage.setItem("historiBarang", JSON.stringify(historiBarang));
+  }
 
-    async function loadDataDariFirebase() {
-      const snapshot = await db.collection("dataUtang").get();
-      dataUtang = [];
-      snapshot.forEach(doc => {
-        dataUtang.push({ id: doc.id, ...doc.data() });
-        historiNama.add(doc.data().nama);
-        historiBarang[doc.data().barang] = doc.data().jumlah;
-      });
-      renderTabel();
+  function tambahUtang() {
+    const nama = document.getElementById('nama').value.trim();
+    const barang = document.getElementById('barang').value.trim();
+    const jumlah = parseInt(document.getElementById('jumlah').value);
+
+    if (!nama || !barang || isNaN(jumlah)) {
+      alert("Mohon lengkapi nama, barang, dan jumlah.");
+      return;
+    }
+
+    dataUtang.push({ nama, barang, jumlah });
+    historiNama.add(nama);
+    historiBarang[barang] = jumlah;
+
+    simpanLocal();
+    reloadDataTable();
+    renderDatalist();
+
+    document.getElementById('nama').value = '';
+    document.getElementById('barang').value = '';
+    document.getElementById('jumlah').value = '';
+  }
+
+  function renderDatalist() {
+    const daftarNama = document.getElementById('daftarNama');
+    daftarNama.innerHTML = '';
+    const hapusSelect = document.getElementById('hapusNamaSelect');
+    hapusSelect.innerHTML = '';
+
+    Array.from(historiNama).sort().forEach(nama => {
+      const option = document.createElement('option');
+      option.value = nama;
+      daftarNama.appendChild(option);
+
+      const selectOption = document.createElement('option');
+      selectOption.value = nama;
+      selectOption.textContent = nama;
+      hapusSelect.appendChild(selectOption);
+    });
+
+    const daftarBarang = document.getElementById('daftarBarang');
+    daftarBarang.innerHTML = '';
+    Object.keys(historiBarang).sort().forEach(barang => {
+      const option = document.createElement('option');
+      option.value = barang;
+      daftarBarang.appendChild(option);
+    });
+  }
+
+  function isiHargaBarang() {
+    const barang = document.getElementById('barang').value.trim();
+    if (barang in historiBarang) {
+      document.getElementById('jumlah').value = historiBarang[barang];
+    }
+  }
+
+  function reloadDataTable() {
+    if (tableInstance) {
+      tableInstance.destroy();
+    }
+
+    const tbody = document.querySelector('#tabelUtang tbody');
+    tbody.innerHTML = '';
+    dataUtang.sort((a, b) => a.nama.localeCompare(b.nama)).forEach((utang, idx) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${idx + 1}</td>
+        <td>${utang.nama}</td>
+        <td>${utang.barang}</td>
+        <td>Rp${utang.jumlah.toLocaleString()}</td>
+        <td><button class="lunasi-btn" data-index="${idx}">Lunasi</button></td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    tableInstance = $('#tabelUtang').DataTable({
+      stateSave: true,
+      language: {
+        search: "Cari:",
+        lengthMenu: "Tampilkan _MENU_ entri",
+        info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ entri",
+        paginate: { previous: "⬅️", next: "➡️" }
+      }
+    });
+  }
+
+  $(document).on('click', '.lunasi-btn', function () {
+    const idx = $(this).data('index');
+    if (confirm("Apakah utang ini sudah lunas?")) {
+      dataUtang.splice(idx, 1);
+      simpanLocal();
+      reloadDataTable();
+    }
+  });
+
+  function hapusNamaLog() {
+    const select = document.getElementById('hapusNamaSelect');
+    const namaDipilih = select.value;
+
+    if (!namaDipilih || !historiNama.has(namaDipilih)) {
+      alert("Pilih nama yang valid.");
+      return;
+    }
+
+    if (confirm(`Yakin ingin menghapus semua utang atas nama "${namaDipilih}"?`)) {
+      dataUtang = dataUtang.filter(item => item.nama !== namaDipilih);
+      historiNama.delete(namaDipilih);
+      simpanLocal();
+      reloadDataTable();
       renderDatalist();
     }
+  }
 
-    async function tambahUtang() {
-      const nama = document.getElementById('nama').value.trim();
-      const barang = document.getElementById('barang').value.trim();
-      const jumlah = parseInt(document.getElementById('jumlah').value);
-
-      if (!nama || !barang || isNaN(jumlah)) {
-        alert("Mohon lengkapi nama, barang, dan jumlah.");
-        return;
-      }
-
-      const utangBaru = { nama, barang, jumlah };
-      try {
-        await db.collection("dataUtang").add(utangBaru);
-        await loadDataDariFirebase();
-        document.getElementById('nama').value = '';
-        document.getElementById('barang').value = '';
-        document.getElementById('jumlah').value = '';
-      } catch (e) {
-        console.error("Gagal menyimpan:", e);
-        alert("Gagal menyimpan ke database.");
-      }
+   function eksporExcel() {
+    if (dataUtang.length === 0) {
+      alert("Tidak ada data untuk diekspor.");
+      return;
     }
 
-    function renderTabel() {
-      const tbody = document.querySelector("#tabelUtang tbody");
-      tbody.innerHTML = '';
+    const sorted = [...dataUtang].sort((a, b) => a.nama.localeCompare(b.nama));
+    const worksheetData = [["No", "Nama", "Barang", "Jumlah (Rp)"]];
 
-      const sorted = [...dataUtang].sort((a, b) => a.nama.localeCompare(b.nama));
-      const start = (currentPage - 1) * perPage;
-      const pageData = sorted.slice(start, start + perPage);
+    sorted.forEach((item, index) => {
+      worksheetData.push([
+        index + 1,
+        item.nama,
+        item.barang,
+        `Rp. ${item.jumlah.toLocaleString()}`
+      ]);
+    });
 
-      pageData.forEach((utang, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${start + index + 1}</td>
-          <td>${utang.nama}</td>
-          <td>${utang.barang}</td>
-          <td>Rp${utang.jumlah.toLocaleString()}</td>
-          <td><button onclick="hapusUtang('${utang.id}')">Lunasi</button></td>
-        `;
-        tbody.appendChild(row);
-      });
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Utang");
 
-      const totalPages = Math.ceil(sorted.length / perPage);
-      document.getElementById("pageInfo").textContent = `Halaman ${currentPage} dari ${totalPages}`;
-    }
-
-    function renderDatalist() {
-      const daftarNama = document.getElementById('daftarNama');
-      daftarNama.innerHTML = '';
-      const hapusSelect = document.getElementById('hapusNamaSelect');
-      hapusSelect.innerHTML = '';
-
-      Array.from(historiNama).sort().forEach(nama => {
-        const option = document.createElement('option');
-        option.value = nama;
-        daftarNama.appendChild(option);
-
-        const selectOption = document.createElement('option');
-        selectOption.value = nama;
-        selectOption.textContent = nama;
-        hapusSelect.appendChild(selectOption);
-      });
-
-      const daftarBarang = document.getElementById('daftarBarang');
-      daftarBarang.innerHTML = '';
-      Object.keys(historiBarang).sort().forEach(barang => {
-        const option = document.createElement('option');
-        option.value = barang;
-        daftarBarang.appendChild(option);
-      });
-    }
-
-    function isiHargaBarang() {
-      const barang = document.getElementById('barang').value.trim();
-      if (barang in historiBarang) {
-        document.getElementById('jumlah').value = historiBarang[barang];
-      }
-    }
-
-    async function hapusUtang(id) {
-      if (confirm("Apakah utang ini sudah lunas?")) {
-        await db.collection("dataUtang").doc(id).delete();
-        await loadDataDariFirebase();
-      }
-    }
-
-    async function hapusNamaLog() {
-      const namaDipilih = document.getElementById('hapusNamaSelect').value;
-      if (!namaDipilih || !historiNama.has(namaDipilih)) {
-        alert("Pilih nama yang valid.");
-        return;
-      }
-
-      if (confirm(`Yakin ingin menghapus semua utang atas nama "${namaDipilih}"?`)) {
-        const snapshot = await db.collection("dataUtang").get();
-        for (const doc of snapshot.docs) {
-          if (doc.data().nama === namaDipilih) {
-            await db.collection("dataUtang").doc(doc.id).delete();
-          }
-        }
-        await loadDataDariFirebase();
-      }
-    }
-
-    function changePerPage() {
-      perPage = parseInt(document.getElementById('perPage').value);
-      currentPage = 1;
-      renderTabel();
-    }
-
-    function prevPage() {
-      if (currentPage > 1) {
-        currentPage--;
-        renderTabel();
-      }
-    }
-
-    function nextPage() {
-      const totalPages = Math.ceil(dataUtang.length / perPage);
-      if (currentPage < totalPages) {
-        currentPage++;
-        renderTabel();
-      }
-    }
-
-    function eksporExcel() {
-      if (dataUtang.length === 0) {
-        alert("Tidak ada data untuk diekspor.");
-        return;
-      }
-
-      const sorted = [...dataUtang].sort((a, b) => a.nama.localeCompare(b.nama));
-      const worksheetData = [["No", "Nama", "Barang", "Jumlah (Rp)"]];
-
-      sorted.forEach((item, index) => {
-        worksheetData.push([
-          index + 1,
-          item.nama,
-          item.barang,
-          `Rp. ${item.jumlah.toLocaleString()}`
-        ]);
-      });
-
-      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Utang");
-      XLSX.writeFile(workbook, "data_utang.xlsx");
-    }
-
-    window.onload = loadDataDariFirebase;
-  </script>
-</body>
-</html>
+    XLSX.writeFile(workbook, "data_utang.xlsx");
+  }
+</script>
